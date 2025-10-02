@@ -1,0 +1,121 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Extensiones Telefónicas Deltacargo</title>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #333;
+        }
+        input, select {
+            padding: 8px;
+            margin: 10px 5px;
+            font-size: 16px;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+            background-color: #fff;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #eee;
+        }
+    </style>
+    <script type="text/javascript">
+        google.charts.load('current', {'packages':['table']});
+        google.charts.setOnLoadCallback(drawTable);
+
+        let dataTableGlobal;
+
+        function drawTable() {
+            const queryString = encodeURIComponent('SELECT A, B, C, D, E');
+            const query = new google.visualization.Query(
+                'https://docs.google.com/spreadsheets/d/1khsr-l1av8Zxt15XQCrUq8np8SBlY3-Z/gviz/tq?sheet=LISTADO%20TELEFONICO&tq=' + queryString
+            );
+            query.send(handleQueryResponse);
+        }
+
+        function handleQueryResponse(response) {
+            if (response.isError()) {
+                alert('Error en la consulta: ' + response.getMessage() + ' ' + response.getDetailedMessage());
+                return;
+            }
+
+            dataTableGlobal = response.getDataTable();
+            populateCentroFilter(dataTableGlobal);
+            renderFilteredTable();
+        }
+
+        function populateCentroFilter(dataTable) {
+            const centros = new Set();
+            for (let i = 0; i < dataTable.getNumberOfRows(); i++) {
+                centros.add(dataTable.getValue(i, 4));
+            }
+            const select = document.getElementById('centroFilter');
+            select.innerHTML = '<option value="">Todos los centros</option>';
+            Array.from(centros).sort().forEach(c => {
+                const option = document.createElement('option');
+                option.value = c;
+                option.textContent = c;
+                select.appendChild(option);
+            });
+        }
+
+        function renderFilteredTable() {
+            const filterText = document.getElementById('searchInput').value.toLowerCase();
+            const selectedCentro = document.getElementById('centroFilter').value;
+
+            const filteredData = new google.visualization.DataTable();
+            filteredData.addColumn('string', 'EXTENSIÓN');
+            filteredData.addColumn('string', 'NOMBRE');
+            filteredData.addColumn('string', 'TELÉFONO FIJO');
+            filteredData.addColumn('string', 'MÓVIL');
+            filteredData.addColumn('string', 'CENTRO');
+
+            for (let i = 0; i < dataTableGlobal.getNumberOfRows(); i++) {
+                const ext = dataTableGlobal.getValue(i, 0);
+                const nombre = dataTableGlobal.getValue(i, 1);
+                const fijo = dataTableGlobal.getValue(i, 2);
+                const movil = dataTableGlobal.getValue(i, 3);
+                const centro = dataTableGlobal.getValue(i, 4);
+
+                const rowText = `${ext} ${nombre} ${fijo} ${movil} ${centro}`.toLowerCase();
+                const centroMatch = selectedCentro === '' || centro === selectedCentro;
+                const textMatch = rowText.includes(filterText);
+
+                if (centroMatch && textMatch) {
+                    filteredData.addRow([
+                        ext ? ext.toString() : '',
+                        nombre || '',
+                        fijo ? fijo.toString().replace('.0','') : '',
+                        movil ? movil.toString().replace('.0','') : '',
+                        centro || ''
+                    ]);
+                }
+            }
+
+            const table = new google.visualization.Table(document.getElementById('table_div'));
+            table.draw(filteredData, {showRowNumber: false, width: '100%', height: 'auto'});
+        }
+    </script>
+</head>
+<body>
+    <h1>Extensiones Telefónicas Deltacargo</h1>
+    <input type="text" id="searchInput" placeholder="Buscar por nombre, extensión, teléfono..." oninput="renderFilteredTable()">
+    <select id="centroFilter" onchange="renderFilteredTable()"></select>
+    <div id="table_div"></div>
+</body>
+</html>
